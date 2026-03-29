@@ -39,6 +39,8 @@ npm run build
 npm test
 ```
 
-## License
+## Links
 
-MIT
+Author homepage: https://anton.shevchuk.name/  
+Author pet projects: https://hohli.com/  
+Support author: https://donate.hohli.com/  
