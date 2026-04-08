@@ -1,21 +1,58 @@
 /**
  * A utility class for spherical geometry (geodesy).
- * Assumes points are [longitude, latitude] in degrees.
+ *
+ * All coordinates use [longitude, latitude] order in degrees.
+ * Distances are in meters unless noted otherwise.
+ * Bearings are in degrees (0-360, clockwise from north).
+ * Angular distances are in radians.
+ *
+ * @example
+ * // Distance between Kyiv and London
+ * GeoUtils.getDistance([30.52, 50.45], [-0.13, 51.51]) // ~2131 km
+ *
+ * // Bearing from Kyiv to London
+ * GeoUtils.getBearing([30.52, 50.45], [-0.13, 51.51]) // ~289°
  */
 export class GeoUtils {
-  static _toRadians(degrees: number) {
+  /**
+   * Convert degrees to radians.
+   * @param degrees - Angle in degrees
+   * @returns Angle in radians
+   */
+  static _toRadians(degrees: number): number {
     return degrees * (Math.PI / 180);
   }
 
-  static _toDegrees(radians: number) {
+  /**
+   * Convert radians to degrees.
+   * @param radians - Angle in radians
+   * @returns Angle in degrees
+   */
+  static _toDegrees(radians: number): number {
     return radians * (180 / Math.PI);
   }
 
-  static _normalizeAngle(degrees: number) {
+  /**
+   * Normalize an angle to the range [-180, 180] degrees.
+   * @param degrees - Angle in degrees (any range)
+   * @returns Normalized angle in degrees
+   */
+  static _normalizeAngle(degrees: number): number {
     return (degrees + 540) % 360 - 180;
   }
 
-  static getBearing(pA: number[], pB: number[]) {
+  /**
+   * Calculate the initial bearing (forward azimuth) from point A to point B.
+   *
+   * @param pA - Start point [lon, lat]
+   * @param pB - End point [lon, lat]
+   * @returns Bearing in degrees (0-360, clockwise from north)
+   *
+   * @example
+   * GeoUtils.getBearing([0, 0], [0, 1])   // 0   (due north)
+   * GeoUtils.getBearing([0, 0], [1, 0])   // 90  (due east)
+   */
+  static getBearing(pA: number[], pB: number[]): number {
     const latA = GeoUtils._toRadians(pA[1]);
     const lonA = GeoUtils._toRadians(pA[0]);
     const latB = GeoUtils._toRadians(pB[1]);
@@ -32,7 +69,22 @@ export class GeoUtils {
     return (GeoUtils._toDegrees(bearingRad) + 360) % 360;
   }
 
-  static findAngle(p1: number[], p2: number[], p3: number[]) {
+  /**
+   * Calculate the interior angle at vertex p2 formed by points p1-p2-p3.
+   *
+   * @param p1 - First point [lon, lat]
+   * @param p2 - Vertex point [lon, lat]
+   * @param p3 - Third point [lon, lat]
+   * @returns Angle in degrees (0-180)
+   *
+   * @example
+   * // Right angle
+   * GeoUtils.findAngle([0, 0], [0, 1], [1, 1]) // ~90°
+   *
+   * // Straight line
+   * GeoUtils.findAngle([0, 0], [0, 1], [0, 2]) // ~180°
+   */
+  static findAngle(p1: number[], p2: number[], p3: number[]): number {
     const bearing21 = GeoUtils.getBearing(p2, p1);
     const bearing23 = GeoUtils.getBearing(p2, p3);
     let angle = Math.abs(bearing21 - bearing23);
@@ -43,11 +95,28 @@ export class GeoUtils {
     return angle;
   }
 
-  static getDistance(pA: number[], pB: number[]) {
+  /**
+   * Calculate the distance between two points using the Haversine formula.
+   *
+   * @param pA - First point [lon, lat]
+   * @param pB - Second point [lon, lat]
+   * @returns Distance in meters
+   *
+   * @example
+   * GeoUtils.getDistance([30.52, 50.45], [-0.13, 51.51]) // ~2131000 m
+   */
+  static getDistance(pA: number[], pB: number[]): number {
     return GeoUtils.getAngularDistance(pA, pB) * 6371000
   }
 
-  static getAngularDistance(pA: number[], pB: number[]) {
+  /**
+   * Calculate the angular distance between two points using the Haversine formula.
+   *
+   * @param pA - First point [lon, lat]
+   * @param pB - Second point [lon, lat]
+   * @returns Angular distance in radians
+   */
+  static getAngularDistance(pA: number[], pB: number[]): number {
     const latA = GeoUtils._toRadians(pA[1]);
     const lonA = GeoUtils._toRadians(pA[0]);
     const latB = GeoUtils._toRadians(pB[1]);
@@ -63,7 +132,20 @@ export class GeoUtils {
     return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
-  static getDestination(startPoint: number[], bearing: number, distanceRad: number) {
+  /**
+   * Calculate the destination point given a start point, bearing, and angular distance.
+   *
+   * @param startPoint - Start point [lon, lat]
+   * @param bearing - Bearing in degrees (0-360)
+   * @param distanceRad - Angular distance in radians
+   * @returns Destination point [lon, lat]
+   *
+   * @example
+   * // Move 100km north from equator
+   * const dist = 100000 / 6371000; // convert meters to radians
+   * GeoUtils.getDestination([0, 0], 0, dist) // [0, ~0.9]
+   */
+  static getDestination(startPoint: number[], bearing: number, distanceRad: number): number[] {
     const lat1 = GeoUtils._toRadians(startPoint[1]);
     const lon1 = GeoUtils._toRadians(startPoint[0]);
     const brng = GeoUtils._toRadians(bearing);
@@ -85,7 +167,24 @@ export class GeoUtils {
     return [(lon2Deg + 540) % 360 - 180, lat2Deg];
   }
 
-  static findIntersection(pA: number[], pB: number[], pC: number[], angle: number) {
+  /**
+   * Find a point D on the great circle path A→B such that
+   * the angle ADC equals the specified angle.
+   *
+   * Uses the Four-Part (Cotangent) Formula for spherical triangles.
+   *
+   * @param pA - Start of line [lon, lat]
+   * @param pB - End of line [lon, lat]
+   * @param pC - Third point [lon, lat]
+   * @param angle - Desired angle at D in degrees (e.g., 90 for perpendicular)
+   * @returns Coordinates of D [lon, lat], or null if no solution exists
+   *
+   * @example
+   * // Find where line AB makes a 90° angle with point C
+   * GeoUtils.findIntersection(A, B, C, 90)
+   */
+  static findIntersection(pA: number[], pB: number[], pC: number[], angle: number): number[] | null {
+    // Guard: degenerate angle (0° or 180°) makes cot(D) undefined
     if (angle % 180 === 0) {
       return null;
     }
@@ -98,6 +197,7 @@ export class GeoUtils {
 
     const distb_rad = GeoUtils.getAngularDistance(pA, pC);
 
+    // Guard: pA and pC are the same point — cot(b) is undefined
     if (distb_rad < 1e-12) {
       return null;
     }
@@ -123,7 +223,24 @@ export class GeoUtils {
     return GeoUtils.getDestination(pA, bearingAB, distAD_rad);
   }
 
-  static findRightAngleIntersection(pA: number[], pB: number[], pC: number[]) {
+  /**
+   * Find the perpendicular foot from point C onto the great circle
+   * defined by points A and B. The resulting point D forms a right
+   * angle (90°) at vertex D in triangle ADC.
+   *
+   * Uses Napier's Rules for right spherical triangles.
+   *
+   * @param pA - First point of the line [lon, lat]
+   * @param pB - Second point of the line [lon, lat] (defines angle at A)
+   * @param pC - Point to project [lon, lat]
+   * @returns Coordinates of D [lon, lat] — the perpendicular foot
+   *
+   * @example
+   * // Project point C onto line AB
+   * const foot = GeoUtils.findRightAngleIntersection(A, B, C)
+   * GeoUtils.findAngle(A, foot, C) // ~90°
+   */
+  static findRightAngleIntersection(pA: number[], pB: number[], pC: number[]): number[] {
     const angleA_deg = GeoUtils.findAngle(pB, pA, pC);
     const angleA_rad = GeoUtils._toRadians(angleA_deg);
 
