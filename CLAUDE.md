@@ -17,10 +17,12 @@ Source is written in TypeScript under `src/`, built with Rollup into `dist/GeoUt
 
 ## Architecture
 
+```
 src/
 ├── meta.ts          # userscript header
 ├── geo-utils.ts     # GeoUtils class (all static methods)
 └── index.ts         # exposes GeoUtils to global scope
+```
 
 ## Key Methods
 
